@@ -1,0 +1,75 @@
+name: MLOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '0 0 * * *'  # Runs every day at midnight UTC
+
+jobs:
+  build-and-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r src/requirements.txt
+
+    - name: Train model
+      run: |
+        cd src
+        python train.py
+
+    - name: Upload model and metrics
+      uses: actions/upload-artifact@v3
+      with:
+        name: model-and-metrics
+        path: src/model.pkl,src/metrics.json
+
+    - name: Test model
+      run: |
+        cd src
+        python test_model.py
+
+  monitor:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r src/requirements.txt
+
+    - name: Download model artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: model-and-metrics
+        path: src/
+
+    - name: Monitor model
+      run: |
+        cd src
+        python monitor_model.py
